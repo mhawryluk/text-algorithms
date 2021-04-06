@@ -1,4 +1,16 @@
 from treelib import Tree
+from random import shuffle
+
+
+def unique_last_character(text):
+    is_unique = text[-1] not in text[:-1]
+
+    if is_unique:
+        return text
+
+    for i in range(36, 1000):
+        if chr(i) not in text:
+            return text + chr(i)
 
 
 class TrieNode:
@@ -16,7 +28,7 @@ class TrieNode:
 class TreeNode:
     def __init__(self, range):
         self.range = range
-        self.children = set()
+        self.children = []
 
     def __str__(self):
         str = ""
@@ -35,7 +47,7 @@ class TreeNode:
 
 
 def build_trie(text):
-    text += '\$'
+    text = unique_last_character(text)
     head = TrieNode("")
 
     for i in range(len(text)):
@@ -54,20 +66,23 @@ def build_trie(text):
 
 
 def build_tree(text):
-    text += '$'
+    text = unique_last_character(text)
     head = TreeNode(range=(0, -1))
 
     for suffix_index in range(len(text)):
+        show_tree(text, head)
         current_node = head
         current_index = suffix_index
         found = 0
         while current_index < len(text) and not found:
             skip = 0
+            shuffle(current_node.children)
+            print(current_node.children)
             for child in current_node.children:
                 common = 0
 
                 for k in range(child.range[0], child.range[1]+1):
-                    if text[suffix_index+common] == text[k]:
+                    if text[current_index+common] == text[k]:
                         common += 1
                     else:
                         break
@@ -76,6 +91,7 @@ def build_tree(text):
                     current_node = child
                     current_index += common
                     skip = 1
+                    break
 
                 elif common > 0:
                     new_child_1 = TreeNode(
@@ -87,13 +103,13 @@ def build_tree(text):
 
                     child.range = (
                         child.range[0], child.range[0]+common-1)
-                    child.children = {new_child_1, new_child_2}
+                    child.children = [new_child_1, new_child_2]
                     found = 1
                     break
 
             if not found and not skip:
                 new_child = TreeNode(range=(current_index, len(text)-1))
-                current_node.children.add(new_child)
+                current_node.children.append(new_child)
                 break
 
     return head
@@ -114,7 +130,7 @@ def show_trie(text):
 
 
 def show_tree(text, head):
-    TreeNode.text = text+"$"
+    TreeNode.text = unique_last_character(text)
     tree = Tree()
     tree.create_node(head, head, parent=None)
 
@@ -128,6 +144,6 @@ def show_tree(text, head):
 
 
 if __name__ == "__main__":
-    text = ""
+    text = "aabbabd"
     head = build_tree(text)
     show_tree(text, head)
