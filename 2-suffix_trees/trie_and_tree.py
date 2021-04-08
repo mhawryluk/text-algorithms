@@ -29,18 +29,19 @@ class TreeNode:
     def __init__(self, range):
         self.range = range
         self.children = []
+        self.suffix_number = None
 
     def __str__(self):
-        str = ""
+        string = ""
         for i in range(self.range[0], self.range[1]+1):
-            str += TreeNode.text[i]
-        return str
+            string += TreeNode.text[i]
+
+        if not self.children and not self.suffix_number is None:
+            string += ' (' + str(self.suffix_number) + ')'
+        return string
 
     def __repr__(self):
-        str = ""
-        for i in range(self.range[0], self.range[1]+1):
-            str += TreeNode.text[i]
-        return str
+        return str(self)
 
     def __lt__(self, other):
         return str(self) < str(other)
@@ -100,6 +101,8 @@ def build_tree(text):
                         range=(current_index+common, len(text)-1))
 
                     new_child_1.children = child.children
+                    new_child_1.suffix_number = child.suffix_number
+                    current_node = new_child_2
 
                     child.range = (
                         child.range[0], child.range[0]+common-1)
@@ -110,7 +113,10 @@ def build_tree(text):
             if not found and not skip:
                 new_child = TreeNode(range=(current_index, len(text)-1))
                 current_node.children.append(new_child)
+                current_node = new_child
                 break
+
+        current_node.suffix_number = suffix_index
 
     return head
 
