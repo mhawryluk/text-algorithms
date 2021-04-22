@@ -4,6 +4,7 @@ from heapq import heappush, heappop
 from collections import Counter
 from bitarray import bitarray, decodetree
 from bitarray.util import *
+from queue import Queue
 import os
 
 
@@ -23,6 +24,126 @@ class Node:
 
     def __lt__(self, other):
         return self.weight < other.weight
+
+
+class AdaptiveNode:
+    def __init__(self, char, weight=0, parent=None):
+        self.char = char
+        self.weight = weight
+        self.parent = parent
+        self.children = [None, None]
+        self.index = -1
+
+    def update_indexes(self):
+        self.nodes: List[Node] = []
+        queue = Queue()
+        queue.put(self.head)
+        index = 0
+        while not queue.empty():
+            node = queue.get()
+            self.nodes.append(node)
+            node.index = index
+            if node.right is not None:
+                queue.put(node.right)
+            if node.left is not None:
+                queue.put(node.left)
+            index += 1
+
+    def add_child(self, index, child):
+        self.children[index] = child
+        child.parent = self
+
+    def increment(self):
+        self.weight += 10
+        if self.parent:
+            self.parent.increment()
+
+    def assign_codes(self, code):
+        if self.char:
+            self.code = code
+        else:
+            self.children[0].assign_code(code+'0')
+            self.children[1].assign_code(code+'1')
+
+
+def update_tree(node, head):
+    itr = node
+    while itr is not head:
+        swap_node = next(itr.weight, itr, head)
+        while swap_node is None and itr is not head:
+            itr = itr.parent
+            swap_node = next(itr.weight, itr, head)
+
+        if itr is head:
+            return
+
+        if swap_node is not None:
+            swap(itr, swap_node)
+
+        itr = itr.parent
+
+
+def next(weight, old_node, head):
+    itr = head
+    queue = head.children[:]
+
+    while queue:
+        node = queue.pop(0)
+        if node.weight == weight and node.char != "#" and node is not old_node and old_node.parent != node:
+            return node
+
+        if node.char is None:
+            queue.extend(node.children)
+
+    return None
+
+
+def swap(node1, node2):
+    node1.parent, node2.parent = node2.parent, node1.parent
+    if node1.parent.children[0] == node2:
+        node1.parent.children[0] = node1
+    else:
+        node1.parent.children[1] = node1
+
+    if node2.parent.children[0] == node1:
+        node2.parent.children[0] = node2
+    else:
+        node2.parent.children[1] = node2
+
+
+def adaptive_huffman(text):
+    AdaptiveNode.nodes = []
+    count = defaultdict(int)
+    nodes = {"#": AdaptiveNode("#", weight=0)}
+    head = nodes["#"]
+
+    for letter in text:
+        if letter in nodes:
+            node = nodes[letter]
+            #print(node.code() + ' ' + node.letter)
+            update_tree(node, head)
+            node.increment()
+        else:
+            updated_node = nodes["#"]
+            #print(updated_node.code() + ' ' + updated_node.letter)
+            print("{0:b}".format(ord(letter)) + ' ' + letter)
+            node = AdaptiveNode(letter, parent=updated_node)
+            nodes[letter] = node
+            del nodes["#"]
+            zero_node = AdaptiveNode("#", parent=updated_node, weight=0)
+            updated_node.add_child(0, zero_node)
+            updated_node.add_child(1, node)
+            nodes["#"] = zero_node
+            update_tree(updated_node, head)
+            updated_node.increment()
+
+    codes = {}
+    head.assign_codes('')
+    return head
+
+
+def encode_huffman(text):
+    pass
 
 
 def huffman(letter_counts):
@@ -79,6 +200,10 @@ def get_codes(head):
 
     walk_tree(head)
     return codes
+
+
+def encode_adaptive(text, file):
+    pass
 
 
 def encode(text, file):
@@ -157,31 +282,6 @@ def show_tree(head):
     tree.show()
 
 
-# def adaptive_huffman(text):
-#     Node.nodes = []
-#     count = defaultdict(int)
-#     nodes = {"#": Node("#", weight=0)}
-#     root = nodes["#"]
-#     for letter in list(text):
-#         if letter in nodes:
-#             node = nodes[letter]
-#             print(node.code() + ' ' + node.letter)
-#             node.increment()
-#         else:
-#             updated_node = nodes["#"]
-#             print(updated_node.code() + ' ' + updated_node.letter)
-#             print("{0:b}".format(ord(letter)) + ' ' + letter)
-#             node = Node(letter, parent=updated_node)
-#             nodes[letter] = node
-#             del nodes["#"]
-#             zero_node = Node("#", parent=updated_node, weight=0)
-#             updated_node.add_child(0, zero_node)
-#             updated_node.add_child(1, node)
-#             nodes["#"] = zero_node
-#             updated_node.increment()
-
 if __name__ == '__main__':
-    text = 'żółć'
-    encode(text, 'encoded')
-    print(decode('encoded'))
-    print(os.path.getsize('encoded'))
+    text = 'abracadabra'
+    adaptive_huffman(text)
