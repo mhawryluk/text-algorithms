@@ -32,25 +32,13 @@ class AdaptiveNode:
 
         return self.children[0].get_char_repr() + self.children[1].get_char_repr()
 
-    def next_on_line(self, current_level, end_level):
-        if current_level == end_level:
-            return self
-
-        if self.children[0]:
-            next = self.children[0].o(current_level + 1, end_level)
-            if next:
-                return next
-            return self.children[1].o(current_level + 1, end_level)
-
-        return None
-
     def get_sibling(self):
         node = self
         levels_change = 0
 
         while node.parent:
             if node == node.parent.children[0]:
-                sibling = node.parent.children[1].o(
+                sibling = node.parent.children[1].next_in_line(
                     0, levels_change)
                 if sibling:
                     return sibling
@@ -58,7 +46,15 @@ class AdaptiveNode:
             node = node.parent
             levels_change += 1
 
-        return node.o(0, levels_change - 1)
+        return node.next_in_line(0, levels_change - 1)
+
+    def next_in_line(self, current_level, end_level):
+        if current_level == end_level:
+            return self
+        if not self.children[0]:
+            return None
+        return self.children[0].next_in_line(current_level + 1, end_level) or \
+            self.children[1].next_in_line(current_level + 1, end_level)
 
     def increment(self):
         self.weight += 1
@@ -136,25 +132,23 @@ def adaptive_huffman(text):
 
 
 def decode_adaptive(bit_seq):
-    decoded = ""
+    text = ""
     nodes = {"#": AdaptiveNode("#", weight=0)}
     head = nodes["#"]
     current_node = head
     i = 0
 
     while i <= len(bit_seq):
-        show_tree_adaptive(head)
-
         if not current_node.children[0]:
             if current_node.char != "#":
-                decoded += current_node.char
+                text += current_node.char
                 current_node.increment()
 
             else:
                 letter = bit_seq[i:i+64].tobytes().decode('utf-32')
                 i += 64
-
-                decoded += letter
+                text += letter
+                
                 node = AdaptiveNode(letter, weight=1)
                 nodes[letter] = node
                 del nodes["#"]
@@ -171,7 +165,7 @@ def decode_adaptive(bit_seq):
 
         i += 1
 
-    return decoded
+    return text
 
 
 def show_tree_adaptive(head):
