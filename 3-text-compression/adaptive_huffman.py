@@ -4,183 +4,160 @@ from heapq import heappush, heappop
 from collections import Counter
 from bitarray import bitarray, decodetree
 from bitarray.util import *
-from queue import Queue
 import os
 
 
 class AdaptiveNode:
-    def __init__(self, char, weight=0, parent=None):
+    def __init__(self, char, weight=0):
         self.char = char
         self.weight = weight
-        self.parent = parent
+        self.parent = None
         self.children = [None, None]
-        self.index = -1
 
-    def __str__(self):
-        return f'{self.char} {self.weight} {self.code()}'
-
-    def __repr__(self):
-        return self.__str__()
-
-    def __lt__(self, other):
-        return self.weight < other.weight
-
-    def code(self):
-        if self.parent is None:
+    def get_code(self):
+        if not self.parent:
             return bitarray()
         if self == self.parent.children[0]:
-            return self.parent.code() + bitarray('0')
+            return self.parent.get_code() + bitarray('0')
         else:
-            return self.parent.code() + bitarray('1')
+            return self.parent.get_code() + bitarray('1')
 
     def add_child(self, index, child):
         self.children[index] = child
         child.parent = self
 
-    def find_next_at_level(self, level):
-        if level == 0:
+    def get_char_repr(self):
+        if not self.children[0]:
+            return self.char
+
+        return self.children[0].get_char_repr() + self.children[1].get_char_repr()
+
+    def next_on_line(self, current_level, end_level):
+        if current_level == end_level:
             return self
 
-        if self.children[0] is not None:
-            found = self.children[0].find_next_at_level(level+1)
-            if found is not None:
-                return found
-
-            found = self.children[1].find_next_at_level(level+1)
-
-            if found is not None:
-                return found
+        if self.children[0]:
+            next = self.children[0].o(current_level + 1, end_level)
+            if next:
+                return next
+            return self.children[1].o(current_level + 1, end_level)
 
         return None
 
-    def right_sibling(self):
-        current_node = self
-        level = 0
+    def get_sibling(self):
+        node = self
+        levels_change = 0
 
-        while current_node.parent is not None:
-            if current_node == current_node.parent.children[0]:
-                found = current_node.parent.children[1].find_next_at_level(
-                    level)
-                if found is not None:
-                    return found
+        while node.parent:
+            if node == node.parent.children[0]:
+                sibling = node.parent.children[1].o(
+                    0, levels_change)
+                if sibling:
+                    return sibling
 
-            current_node = current_node.parent
-            level -= 1
+            node = node.parent
+            levels_change += 1
 
-        current_node = self
-        depth = 0
-
-        while current_node.parent is not None:
-            current_node = current_node.parent
-            depth += 1
-
-        found = current_node.find_next_at_level(-depth + 1)
-
-        if found is not None:
-            return found
-
-        return None
+        return node.o(0, levels_change - 1)
 
     def increment(self):
         self.weight += 1
 
         if self.parent:
-            right_sib = self.right_sibling()
+            sibling = self.get_sibling()
+            if sibling:
+                if self.weight > sibling.weight:
+                    next_sibling = sibling.get_sibling()
 
-            if right_sib.weight < self.weight:
-                while True:
-                    next_sib = right_sib.right_sibling()
-                    if next_sib is None or right_sib.weight != next_sib.weight:
-                        break
-                    else:
-                        right_sib = next_sib
+                    while next_sibling and sibling.weight == next_sibling.weight:
+                        sibling = next_sibling
+                        next_sibling = sibling.get_sibling()
 
-                if right_sib != self.parent:
-                    swap(self, right_sib)
+                    if sibling != self.parent:
+                        swap_nodes(self, sibling)
 
             self.parent.increment()
 
+    def __str__(self):
+        return f'char(s): {"".join(sorted(self.get_char_repr()))}, weight: {self.weight}, code:{"".join(list(map(str, self.get_code())))}'
 
-def swap(node1, node2):
-    node1.parent, node2.parent = node2.parent, node1.parent
-    if node1.parent.children[0] == node2:
-        node1.parent.children[0] = node1
-    else:
-        node1.parent.children[1] = node1
+    def __repr__(self):
+        return str(self)
 
-    if node2.parent.children[0] == node1:
-        node2.parent.children[0] = node2
+    def __lt__(self, other):
+        return self.weight < other.weight
+
+
+def swap_nodes(node_1, node_2):
+    node_1.parent, node_2.parent = node_2.parent, node_1.parent
+
+    if node_2 == node_1.parent.children[0]:
+        node_1.parent.children[0] = node_1
     else:
-        node2.parent.children[1] = node2
+        node_1.parent.children[1] = node_1
+
+    if node_1 == node_2.parent.children[0]:
+        node_2.parent.children[0] = node_2
+    else:
+        node_2.parent.children[1] = node_2
 
 
 def adaptive_huffman(text):
-    AdaptiveNode.nodes = []
     nodes = {"#": AdaptiveNode("#", weight=0)}
     head = nodes["#"]
-
-    bits = bitarray()
+    bit_seq = bitarray()
 
     for letter in text:
         show_tree_adaptive(head)
+
         if letter in nodes:
             node = nodes[letter]
-            #print(node.code(), end=' <--')
-            # print(node.char)
-            bits += node.code()
-            #update_tree(node, head)
+            bit_seq += node.get_code()
             node.increment()
         else:
             updated_node = nodes["#"]
-            #print("{0:b}".format(ord(letter)) + ' ' + letter)
+            bit_seq += updated_node.get_code()
+
             letter_bits = bitarray()
-            letter_bits.frombytes(letter.encode('utf-8'))
-            # print(updated_node.code(), end=' <- ')
-            # print(updated_node.char)
-            bits += updated_node.code()
-            bits += letter_bits
-            print(letter, letter_bits)
-            node = AdaptiveNode(letter, parent=updated_node, weight=1)
+            letter_bits.frombytes(letter.encode('utf-32'))
+            bit_seq += letter_bits
+
+            node = AdaptiveNode(letter, weight=1)
             nodes[letter] = node
             del nodes["#"]
-            zero_node = AdaptiveNode("#", parent=updated_node, weight=0)
+            zero_node = AdaptiveNode("#", weight=0)
             updated_node.add_child(0, zero_node)
             updated_node.add_child(1, node)
             nodes["#"] = zero_node
-            #update_tree(updated_node, head)
+
             updated_node.increment()
 
-    print(bits)
-    return head, bits
+    return head, bit_seq
 
 
-def decode_adaptive(bits):
+def decode_adaptive(bit_seq):
     decoded = ""
     nodes = {"#": AdaptiveNode("#", weight=0)}
     head = nodes["#"]
     current_node = head
-    index = 0
+    i = 0
 
-    while index <= len(bits):
+    while i <= len(bit_seq):
         show_tree_adaptive(head)
 
-        if current_node.children[0] is None and current_node.children[1] is None:
+        if not current_node.children[0]:
             if current_node.char != "#":
                 decoded += current_node.char
-                # print(current_node.char)
                 current_node.increment()
 
             else:
-                print(bits[index:index+8])
-                letter = bits[index:index+8].tobytes().decode('utf-8')
-                print(bits[index:index+8], letter)
-
-                index += 8
+                letter = bit_seq[i:i+64].tobytes().decode('utf-32')
+                i += 64
 
                 decoded += letter
                 node = AdaptiveNode(letter, weight=1)
                 nodes[letter] = node
-
+                del nodes["#"]
                 zero_node = AdaptiveNode("#")
                 current_node.add_child(0, zero_node)
                 current_node.add_child(1, node)
@@ -189,10 +166,10 @@ def decode_adaptive(bits):
 
             current_node = head
 
-        if index < len(bits):
-            current_node = current_node.children[1] if bits[index] == 1 else current_node.children[0]
+        if i < len(bit_seq):
+            current_node = current_node.children[1] if bit_seq[i] == 1 else current_node.children[0]
 
-        index += 1
+        i += 1
 
     return decoded
 
