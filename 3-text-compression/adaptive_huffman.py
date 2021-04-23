@@ -17,10 +17,13 @@ class AdaptiveNode:
         self.index = -1
 
     def __str__(self):
-        return self.char
+        return f'{self.char} {self.weight} {self.code()}'
 
     def __repr__(self):
-        return str(self)
+        return self.__str__()
+
+    def __lt__(self, other):
+        return self.weight < other.weight
 
     def code(self):
         if self.parent is None:
@@ -119,20 +122,25 @@ def adaptive_huffman(text):
     bits = bitarray()
 
     for letter in text:
+        show_tree_adaptive(head)
         if letter in nodes:
             node = nodes[letter]
-            print(node.code(), end=' <--')
-            print(node.char)
+            #print(node.code(), end=' <--')
+            # print(node.char)
             bits += node.code()
             #update_tree(node, head)
             node.increment()
         else:
             updated_node = nodes["#"]
-            print("{0:b}".format(ord(letter)) + ' ' + letter)
-            print(updated_node.code(), end=' <- ')
-            print(updated_node.char)
+            #print("{0:b}".format(ord(letter)) + ' ' + letter)
+            letter_bits = bitarray()
+            letter_bits.frombytes(letter.encode('utf-8'))
+            # print(updated_node.code(), end=' <- ')
+            # print(updated_node.char)
             bits += updated_node.code()
-            node = AdaptiveNode(letter, parent=updated_node)
+            bits += letter_bits
+            print(letter, letter_bits)
+            node = AdaptiveNode(letter, parent=updated_node, weight=1)
             nodes[letter] = node
             del nodes["#"]
             zero_node = AdaptiveNode("#", parent=updated_node, weight=0)
@@ -148,26 +156,28 @@ def adaptive_huffman(text):
 
 def decode_adaptive(bits):
     decoded = ""
-    nodes = {"#": AdaptiveNode("#")}
+    nodes = {"#": AdaptiveNode("#", weight=0)}
     head = nodes["#"]
     current_node = head
     index = 0
 
     while index <= len(bits):
+        show_tree_adaptive(head)
+
         if current_node.children[0] is None and current_node.children[1] is None:
             if current_node.char != "#":
                 decoded += current_node.char
-                print(current_node.char)
+                # print(current_node.char)
                 current_node.increment()
 
             else:
-                print(bits[index:index+8], end='letter: ')
-                letter = chr(ba2int(bits[index:index+8]))
-                print(letter)
+                print(bits[index:index+8])
+                letter = bits[index:index+8].tobytes().decode('utf-8')
+                print(bits[index:index+8], letter)
 
-                decoded += letter
                 index += 8
 
+                decoded += letter
                 node = AdaptiveNode(letter, weight=1)
                 nodes[letter] = node
 
@@ -180,7 +190,7 @@ def decode_adaptive(bits):
             current_node = head
 
         if index < len(bits):
-            current_node = current_node.children[1] if bits[index] else current_node.children[0]
+            current_node = current_node.children[1] if bits[index] == 1 else current_node.children[0]
 
         index += 1
 
@@ -189,16 +199,14 @@ def decode_adaptive(bits):
 
 def show_tree_adaptive(head):
     tree = Tree()
-    tree.create_node(str(head) + ' weight: ' +
-                     str(head.weight), head, parent=None)
-    head.code = ''
+    tree.create_node(str(head), head, parent=None)
 
     def create_tree(node):
-        for i, child in enumerate(node.elements):
-            child.code = node.code + str(i)
-            tree.create_node(str(child) + ' weight: ' + str(child.weight) + ' code: ' + str(child.code),
+        for i, child in enumerate(node.children):
+            tree.create_node(str(child),
                              child, parent=node)
-            if len(child.elements) > 1:
+
+            if child and child.children[0] and child.children[1]:
                 create_tree(child)
 
     create_tree(head)
