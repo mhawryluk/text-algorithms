@@ -34,68 +34,80 @@ class AdaptiveNode:
         self.children = [None, None]
         self.index = -1
 
-    def update_indexes(self):
-        self.nodes: List[Node] = []
-        queue = Queue()
-        queue.put(self.head)
-        index = 0
-        while not queue.empty():
-            node = queue.get()
-            self.nodes.append(node)
-            node.index = index
-            if node.right is not None:
-                queue.put(node.right)
-            if node.left is not None:
-                queue.put(node.left)
-            index += 1
+    def code(self):
+        if self.parent is None:
+            return bitarray()
+        if self == self.parent.children[0]:
+            return self.parent.code() + bitarray('0')
+        else:
+            return self.parent.code() + bitarray('1')
 
     def add_child(self, index, child):
         self.children[index] = child
         child.parent = self
 
+    def find_next_at_level(self, level):
+        if level == 0:
+            return self
+
+        if self.children[0] is not None:
+            found = self.children[0].find_next_at_level(level+1)
+            if found is not None:
+                return found
+
+            found = self.children[1].find_next_at_level(level+1)
+
+            if found is not None:
+                return found
+
+        return None
+
+    def right_sibling(self):
+        current_node = self
+        level = 0
+
+        while current_node.parent is not None:
+            if current_node == current_node.parent.children[0]:
+                found = current_node.parent.children[1].find_next_at_level(
+                    level)
+                if found is not None:
+                    return found
+
+            current_node = current_node.parent
+            level -= 1
+
+        current_node = self
+        depth = 0
+
+        while current_node.parent is not None:
+            current_node = current_node.parent
+            depth += 1
+
+        found = current_node.find_next_at_level(-depth + 1)
+
+        if found is not None:
+            return found
+
+        return None
+
     def increment(self):
-        self.weight += 10
+        self.weight += 1
+
         if self.parent:
+            right_sib = self.right_sibling()
+
+            if right_sib.weight < self.weight:
+                while True:
+                    next_sib = right_sib.right_sibling()
+                    if next_sib is None or right_sib.weight != next_sib.weight:
+                        break
+                    else:
+                        right_sib = next_sib
+
+                if right_sib != self.parent:
+                    swap(self, right_sib)
+
             self.parent.increment()
-
-    def assign_codes(self, code):
-        if self.char:
-            self.code = code
-        else:
-            self.children[0].assign_code(code+'0')
-            self.children[1].assign_code(code+'1')
-
-
-def update_tree(node, head):
-    itr = node
-    while itr is not head:
-        swap_node = next(itr.weight, itr, head)
-        while swap_node is None and itr is not head:
-            itr = itr.parent
-            swap_node = next(itr.weight, itr, head)
-
-        if itr is head:
-            return
-
-        if swap_node is not None:
-            swap(itr, swap_node)
-
-        itr = itr.parent
-
-
-def next(weight, old_node, head):
-    itr = head
-    queue = head.children[:]
-
-    while queue:
-        node = queue.pop(0)
-        if node.weight == weight and node.char != "#" and node is not old_node and old_node.parent != node:
-            return node
-
-        if node.char is None:
-            queue.extend(node.children)
-
-    return None
 
 
 def swap(node1, node2):
@@ -117,15 +129,19 @@ def adaptive_huffman(text):
     nodes = {"#": AdaptiveNode("#", weight=0)}
     head = nodes["#"]
 
+    bits = bitarray()
+
     for letter in text:
         if letter in nodes:
             node = nodes[letter]
             #print(node.code() + ' ' + node.letter)
-            update_tree(node, head)
+            bits += node.code()
+            #update_tree(node, head)
             node.increment()
         else:
             updated_node = nodes["#"]
             #print(updated_node.code() + ' ' + updated_node.letter)
+            bits += updated_node.code()
             print("{0:b}".format(ord(letter)) + ' ' + letter)
             node = AdaptiveNode(letter, parent=updated_node)
             nodes[letter] = node
@@ -134,16 +150,50 @@ def adaptive_huffman(text):
             updated_node.add_child(0, zero_node)
             updated_node.add_child(1, node)
             nodes["#"] = zero_node
-            update_tree(updated_node, head)
+            #update_tree(updated_node, head)
             updated_node.increment()
 
-    codes = {}
-    head.assign_codes('')
-    return head
+    return head, bits
 
 
-def encode_huffman(text):
-    pass
+def decode_adaptive(bitarr):
+    decoded = ""
+    count = defaultdict(int)
+    nodes = {"#": AdaptiveNode("#")}
+    root = nodes["#"]
+    current_node = root
+    bits = len(bitarr)
+    index = 0
+    while index <= bits:
+        if current_node.children[0] is None and current_node.children[1] is None:
+            if current_node.char != "#":
+                decoded += current_node.char
+                current_node.increment()
+            else:
+                try:
+                    letter = bitarr[index:index+8].tobytes().decode('utf-8')
+
+                except UnicodeDecodeError:
+                    print(bitarr[index:index+8])
+                    print(f"Index: {index}, Bits: {bits}")
+                    raise ArithmeticError
+
+                decoded += letter
+                index += 8
+                node = AdaptiveNode(letter, weight=1)
+                nodes[letter] = node
+                zero_node = AdaptiveNode("#")
+                current_node.add_child(0, zero_node)
+                current_node.add_child(1, node)
+                nodes["#"] = zero_node
+                current_node.increment()
+            current_node = root
+
+        if index < bits:
+            current_node = current_node.children[1] if bitarr[index] else current_node.children[0]
+        index += 1
+
+    return decoded
 
 
 def huffman(letter_counts):
@@ -200,10 +250,6 @@ def get_codes(head):
 
     walk_tree(head)
     return codes
-
-
-def encode_adaptive(text, file):
-    pass
 
 
 def encode(text, file):
@@ -264,6 +310,10 @@ def decode(file):
     return text
 
 
+def show_tree_adaptive(head):
+    pass
+
+
 def show_tree(head):
     tree = Tree()
     tree.create_node(str(head) + ' weight: ' +
@@ -284,4 +334,5 @@ def show_tree(head):
 
 if __name__ == '__main__':
     text = 'abracadabra'
-    adaptive_huffman(text)
+    head, bits = adaptive_huffman(text)
+    print(decode_adaptive(bits))
