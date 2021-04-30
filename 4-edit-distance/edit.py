@@ -1,8 +1,7 @@
-
-# from mpl_toolkits.basemap import Basemap
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
+
 LEFT = '\u2190'
 UP = '\u2191'
 DIAG = '\u2B09'
@@ -77,9 +76,6 @@ def transform(text_a, text_b, changes):
     states = [current]
 
     for change in reversed(changes):
-        print(current)
-        print(change)
-
         if change[0] == INSERT:
             current = current[:i] + change[1] + current[i:]
             states.append(current[:i] + '*' + current[i] + '*' + current[i+1:])
@@ -119,7 +115,7 @@ if __name__ == '__main__':
     value, edit, path = levensheit(text_a, text_b)
     changes = get_changes(text_a, text_b, edit, path)
     print(value)
-    print_2d(changes)
+    # print_2d(changes)
     # print_2d(edit)
     # print_2d(path)
     states = transform(text_a, text_b, changes)
