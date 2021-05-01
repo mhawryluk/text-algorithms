@@ -1,6 +1,7 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib import animation
+from spacy.lang.pl import Polish
 
 LEFT = '\u2190'
 UP = '\u2191'
@@ -95,7 +96,7 @@ def transform(text_a, text_b, changes):
 
 
 def get_lcs(text_a, text_b):
-    def delta(x, y): return 0 if x == y else 2
+    def delta(x, y): return 0 if str(x) == str(y) else 2
     dist, edit, path = levensheit(text_a, text_b, delta)
 
     i, j = len(text_a), len(text_b)
@@ -112,8 +113,35 @@ def get_lcs(text_a, text_b):
             i -= 1
             j -= 1
 
-    lcs = ''.join(x[2] for x in reversed(common))
+    lcs = ''.join(str(x[2]) for x in reversed(common))
     return dist, lcs, common
+
+
+def print_diff(line_a, line_b, num):
+    dist, lcs, common = get_lcs(line_a, line_b)
+    print(lcs)
+    print(common)
+    i = 0
+
+    if dist == len(line_a) and dist == len(line_b):
+        return
+
+    common_a = set(x[0] for x in common)
+    common_b = set(x[1] for x in common)
+
+    print(
+        f"< {num} | {''.join(str(c) for i, c in enumerate(line_a) if i not in common_a)}")
+    print(
+        f"> {num} | {''.join(str(c) for i, c in enumerate(line_b) if i not in common_b)}")
+
+
+def diff(file_a, file_b):
+    nlp = Polish()
+    tokenizer = nlp.tokenizer
+    f_a = open(file_a, "r")
+    f_b = open(file_b, "r")
+    for i, lines in enumerate(zip(f_a, f_b)):
+        print_diff(tokenizer(lines[0]), tokenizer(lines[1]), i)
 
 
 def animate(states):
@@ -142,4 +170,11 @@ if __name__ == '__main__':
     # # plt.draw()
     # plt.show()
 
-    print(get_lcs(text_a, text_b))
+    # print(get_lcs(text_a, text_b))
+    nlp = Polish()
+    tokenizer = nlp.tokenizer
+
+    with open('romeo-i-julia-700.txt', 'r') as f:
+        text = ''.join(f)
+
+    diff('a.txt', 'b.txt')
