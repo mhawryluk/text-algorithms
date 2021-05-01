@@ -16,13 +16,14 @@ def print_2d(l): return print(
     '\n'.join(map(''.join, list(map(lambda x: str(x).replace("'", ""), l)))))
 
 
-def levensheit(text_a, text_b):
+def levensheit(text_a, text_b, delta=None):
     edit = [[None for _ in range(len(text_b) + 1)]
             for _ in range(len(text_a) + 1)]
     path = [[None for _ in range(len(text_b) + 1)]
             for _ in range(len(text_a) + 1)]
 
-    def delta(char_a, char_b): return 0 if char_a == char_b else 1
+    if delta is None:
+        def delta(char_a, char_b): return 0 if char_a == char_b else 1
 
     for i in range(len(text_a) + 1):
         edit[i][0] = i
@@ -94,8 +95,25 @@ def transform(text_a, text_b, changes):
 
 
 def get_lcs(text_a, text_b):
-    lcs = [[None for _ in range(len(text_b) + 1)]
-           for _ in range(len(text_a) + 1)]
+    def delta(x, y): return 0 if x == y else 2
+    dist, edit, path = levensheit(text_a, text_b, delta)
+
+    i, j = len(text_a), len(text_b)
+    common = []
+
+    while i > 0 or j > 0:
+        if path[i][j] == LEFT:
+            j -= 1
+        elif path[i][j] == UP:
+            i -= 1
+        else:
+            if path[i][j] == DIAG:
+                common.append((i-1, j-1, text_a[i-1]))
+            i -= 1
+            j -= 1
+
+    lcs = ''.join(x[2] for x in reversed(common))
+    return dist, lcs, common
 
 
 def animate(states):
@@ -112,14 +130,16 @@ def animate(states):
 
 if __name__ == '__main__':
     text_a, text_b = "kwintesencja", "quintessence"
-    value, edit, path = levensheit(text_a, text_b)
-    changes = get_changes(text_a, text_b, edit, path)
-    print(value)
-    # print_2d(changes)
-    # print_2d(edit)
-    # print_2d(path)
-    states = transform(text_a, text_b, changes)
-    print(states)
-    animation = animate(states)
-    # plt.draw()
-    plt.show()
+    # value, edit, path = levensheit(text_a, text_b)
+    # changes = get_changes(text_a, text_b, edit, path)
+    # print(value)
+    # # print_2d(changes)
+    # # print_2d(edit)
+    # # print_2d(path)
+    # states = transform(text_a, text_b, changes)
+    # print(states)
+    # animation = animate(states)
+    # # plt.draw()
+    # plt.show()
+
+    print(get_lcs(text_a, text_b))
