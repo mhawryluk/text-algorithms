@@ -99,6 +99,8 @@ def get_lcs(text_a, text_b):
     def delta(x, y): return 0 if str(x) == str(y) else 2
     dist, edit, path = levensheit(text_a, text_b, delta)
 
+    lcs_len = (len(text_a) + len(text_b) - dist)//2
+
     i, j = len(text_a), len(text_b)
     common = []
 
@@ -114,7 +116,7 @@ def get_lcs(text_a, text_b):
             j -= 1
 
     lcs = ''.join(str(x[2]) for x in reversed(common))
-    return dist, lcs, common
+    return lcs_len, lcs, common
 
 
 def print_diff(line_a, line_b, num):
@@ -170,11 +172,12 @@ if __name__ == '__main__':
     # # plt.draw()
     # plt.show()
 
-    # print(get_lcs(text_a, text_b))
-    nlp = Polish()
-    tokenizer = nlp.tokenizer
 
-    with open('romeo-i-julia-700.txt', 'r') as f:
-        text = ''.join(f)
+    print(get_lcs('los', 'kloc'))
+    # nlp = Polish()
+    # tokenizer = nlp.tokenizer
 
-    diff('a.txt', 'b.txt')
+    # with open('romeo-i-julia-700.txt', 'r') as f:
+    #     text = ''.join(f)
+
+    # diff('a.txt', 'b.txt')
