@@ -1,4 +1,5 @@
 from collections import Counter
+import sklearn.cluster
 
 
 def lcs(x, y):
@@ -37,9 +38,22 @@ def euclides(x, y):
 
     return dist**0.5
 
+def get_most_common_words(text):
+    words_stats = list(Counter(text.split(' ')).items())
+    words_stats.sort(reverse=True)
+    return [word for word in words_stats[:20]]
+
+def cluster(texts, metric):
+    # print(texts)
+    distances = [[metric(texts[i], texts[j]) for i in range(len(texts))] for j in range(len(texts))]
+    # print(distances)
+    clustering = sklearn.cluster.DBSCAN(eps=0.2).fit(distances)
+    return clustering.labels_
+
+
 if __name__ == '__main__':
-    x = 'BCDF'
-    y = 'ABCDEF'
-    print(lcs(x, y))
-    print(dice(x, y))
-    print(euclides(x, y))
+    texts = ['aa' for _ in range(20)] + ['bb' for _ in range(20)] 
+    with open('5-clustering/lines.txt', 'r') as f:
+        lines = list(f)
+
+    print(cluster(lines, euclides))
